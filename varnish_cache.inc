@@ -8,15 +8,17 @@ function _varnish_cache_purge_all($host_ip) {
   global $base_url;
   $urldata = parse_url($base_url);
   $c = curl_init();
-  if (variable_get('varnish_cache_use_https')) {
-    $url = 'https://' . $host_ip . '/';
-  } else {
-    $url = 'http://' . $host_ip . '/';
-  }
-  _varnish_cache_make_request($urldata['host'], $url, 'BAN');
+  $headers = array('Host: ' . $urldata['host']);
+  curl_setopt($c, CURLOPT_HTTPHEADER, $headers);
+  curl_setopt($c, CURLOPT_RETURNTRANSFER, TRUE);
+  curl_setopt($c, CURLOPT_URL, $base_url . '/');
+  curl_setopt($c, CURLOPT_HEADER, FALSE);
+  curl_setopt($c, CURLOPT_CUSTOMREQUEST, 'BAN');
+  curl_exec($c);
 }
 
 function _varnish_cache_purge($url, $host_ip) {
+drupal_set_message('preparing: ' . $url);
   if (!strpos($url, '://')) {
     global $base_url;
     if (substr($url, 0, 1) != '/') {
@@ -26,35 +28,17 @@ function _varnish_cache_purge($url, $host_ip) {
   }
   $c = curl_init();
   $urldata = parse_url($url);
-  if (variable_get('varnish_cache_use_https')) {
-    $url = 'https://' . $host_ip . $urldata['path'];
-  } else {
-    $url = 'http://' . $host_ip . $urldata['path'];
-  }
+  $url = 'http://' . $host_ip . $urldata['path'];
   if (!empty($urldata['query'])) {
     $url .= '?' . $urldata['query'];
   }
-  _varnish_cache_make_request($urldata['host'], $url, 'PURGE');
-}
-
-function _varnish_cache_make_request($host, $url, $method = 'PURGE') {
-  varnish_cache_debug('Making curl request to @url [host header: @host] via @method', array(
-    '@url' => $url,
-    '@host' => $host,
-    '@method' => $method,
-  ));
-  $c = curl_init();
-  $headers = array('Host: ' . $host);
+  $headers = array('Host: ' . $urldata['host']);
   curl_setopt($c, CURLOPT_HTTPHEADER, $headers);
   curl_setopt($c, CURLOPT_RETURNTRANSFER, TRUE);
   curl_setopt($c, CURLOPT_URL, $url);
   curl_setopt($c, CURLOPT_HEADER, FALSE);
-  curl_setopt($c, CURLOPT_CUSTOMREQUEST, $method);
+  curl_setopt($c, CURLOPT_CUSTOMREQUEST, 'PURGE');
   curl_exec($c);
-  varnish_cache_debug('Result of curl @method request to @url [@host]: @status', array(
-    '@url' => $url,
-    '@method' => $method,
-    '@host' => $host,
-    '@status' => curl_getinfo($c, CURLINFO_HTTP_CODE),
-  ));
+  drupal_set_message('Varnish error dump: ' . curl_error($c));
+  drupal_set_message('Varnish cache purge on ' . $url . ' to ' . $host_ip . ', response: ' . curl_getinfo($c, CURLINFO_HTTP_CODE));
 }

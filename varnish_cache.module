@@ -18,10 +18,6 @@ function varnish_cache_cache_wipe($paths) {
   $servers = _varnish_cache_get_cache_servers();
   foreach ($paths as $path) {
     foreach ($servers as $server) {
-      varnish_cache_debug('Clearing the page cache for @page on Varnish server @server', array(
-        '@server' => $server,
-        '@page' => $path,
-      ));
       _varnish_cache_purge($path, $server);
     }
   }
@@ -31,21 +27,6 @@ function varnish_cache_cache_wipe_all() {
   module_load_include('inc', 'varnish_cache');
   $servers = _varnish_cache_get_cache_servers();
   foreach ($servers as $server) {
-    varnish_cache_debug('Clearing the entire cache for @base_url on Varnish server @server', array(
-      '@server' => $server,
-    ));
     _varnish_cache_purge_all($server);
-  }
-}
-
-function varnish_cache_debug($message, $variables = array(), $priority = WATCHDOG_DEBUG) {
-  global $base_url;
-  $variables['@base_url'] = $base_url;
-  $check = drupal_static(__FUNCTION__, NULL);
-  if ($check === NULL) {
-    $check = variable_get('varnish_cache_debug', FALSE);
-  }
-  if ($check) {
-    watchdog('varnish_cache', $message, $variables, $priority);
   }
 }
